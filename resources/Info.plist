@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>launch.sh</string>
+    <key>CFBundleIconFile</key>
+    <string>eMule.icns</string>
+    <key>CFBundleIdentifier</key>
+    <string>net.emule-project.macmule</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>macMule</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.72a</string>
+    <key>CFBundleVersion</key>
+    <string>0.72.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15.4</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>eMule (GPL v2) + Wine (LGPL 2.1). Built by macMule.</string>
+</dict>
+</plist>
