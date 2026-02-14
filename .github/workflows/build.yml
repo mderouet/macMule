@@ -2,7 +2,7 @@ name: Build macMule
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
       emule_version:
