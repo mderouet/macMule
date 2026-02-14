@@ -1,0 +1,63 @@
+name: Build macMule
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      emule_version:
+        description: 'eMule version (e.g. 0.70b). Empty = latest stable.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ inputs.emule_version }}" ]; then
+            VER="${{ inputs.emule_version }}"
+          else
+            TAG=$(gh release list --repo irwir/eMule --json tagName,isPrerelease \
+              --jq '[.[] | select(.isPrerelease == false)][0].tagName')
+            VER=$(echo "$TAG" | sed 's/.*_v\(.*\)-community/\1/')
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Resolved eMule version: $VER"
+
+      - name: Check if already released
+        id: check
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release v$VER already exists — skipping build."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "No release v$VER found — proceeding with build."
+          fi
+
+      - name: Install Wine Crossover
+        if: steps.check.outputs.skip == 'false'
+        run: brew install --cask --no-quarantine gcenx/wine/wine-crossover
+
+      - name: Build .dmg
+        if: steps.check.outputs.skip == 'false'
+        run: ./build.sh "${{ steps.version.outputs.version }}"
+
+      - name: Create release
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          gh release create "v$VER" "build/macMule-v${VER}.dmg" \
+            --title "macMule v$VER" \
+            --notes "eMule v$VER for macOS. Download, drag to Applications, run."
