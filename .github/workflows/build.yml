@@ -26,13 +26,18 @@ jobs:
         run: |
           if [ -n "${{ inputs.emule_version }}" ]; then
             VER="${{ inputs.emule_version }}"
+            PRERELEASE=$(gh release view "eMule_v${VER}-community" --repo irwir/eMule \
+              --json isPrerelease --jq '.isPrerelease')
           else
-            TAG=$(gh release list --repo irwir/eMule --json tagName,isPrerelease \
-              --jq '[.[] | select(.isPrerelease == false)][0].tagName')
+            RELEASE_JSON=$(gh release list --repo irwir/eMule --json tagName,isPrerelease \
+              --jq '[.[] | select(.isPrerelease == false)][0]')
+            TAG=$(echo "$RELEASE_JSON" | jq -r '.tagName')
             VER=$(echo "$TAG" | sed 's/.*_v\(.*\)-community/\1/')
+            PRERELEASE="false"
           fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
-          echo "Resolved eMule version: $VER"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "Resolved eMule version: $VER (prerelease: $PRERELEASE)"
 
       - name: Check if already released
         id: check
@@ -58,6 +63,11 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         run: |
           VER="${{ steps.version.outputs.version }}"
+          PRERELEASE_FLAG=""
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
           gh release create "v$VER" "build/macMule-v${VER}.dmg" \
             --title "macMule v$VER" \
-            --notes "eMule v$VER for macOS. Download, drag to Applications, run."
+            --notes "eMule v$VER for macOS. Download, drag to Applications, run." \
+            $PRERELEASE_FLAG
