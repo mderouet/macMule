@@ -2,11 +2,11 @@ name: Build macMule
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       emule_version:
-        description: 'eMule version (e.g. 0.70b). Empty = latest stable.'
+        description: 'eMule version (e.g. 0.70b). Empty = oldest missing.'
         required: false
         type: string
 
@@ -29,17 +29,42 @@ jobs:
             PRERELEASE=$(gh release view "eMule_v${VER}-community" --repo irwir/eMule \
               --json isPrerelease --jq '.isPrerelease')
           else
-            RELEASE_JSON=$(gh release list --repo irwir/eMule --json tagName,isPrerelease \
-              --jq '[.[] | select(.isPrerelease == false)][0]')
-            TAG=$(echo "$RELEASE_JSON" | jq -r '.tagName')
-            VER=$(echo "$TAG" | sed 's/.*_v\(.*\)-community/\1/')
-            PRERELEASE="false"
+            # Get all upstream releases
+            UPSTREAM=$(gh release list --repo irwir/eMule --json tagName,isPrerelease --limit 50)
+            # Get all macMule releases
+            OURS=$(gh release list --repo "$GITHUB_REPOSITORY" --json tagName --jq '.[].tagName' --limit 50)
+
+            # Find oldest missing version (list is newest→oldest, last match = oldest)
+            MISSING_VER=""
+            MISSING_PRERELEASE=""
+            for row in $(echo "$UPSTREAM" | jq -c '.[]'); do
+              TAG=$(echo "$row" | jq -r '.tagName')
+              VER=$(echo "$TAG" | sed 's/.*_v\(.*\)-community/\1/')
+              PRE=$(echo "$row" | jq -r '.isPrerelease')
+              if ! echo "$OURS" | grep -q "^v${VER}$"; then
+                MISSING_VER="$VER"
+                MISSING_PRERELEASE="$PRE"
+              fi
+            done
+
+            if [ -z "$MISSING_VER" ]; then
+              echo "All upstream versions already have macMule releases — nothing to do."
+              echo "version=" >> "$GITHUB_OUTPUT"
+              echo "prerelease=" >> "$GITHUB_OUTPUT"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            VER="$MISSING_VER"
+            PRERELEASE="$MISSING_PRERELEASE"
           fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "Resolved eMule version: $VER (prerelease: $PRERELEASE)"
 
       - name: Check if already released
+        if: steps.version.outputs.skip != 'true'
         id: check
         run: |
           VER="${{ steps.version.outputs.version }}"
@@ -52,15 +77,15 @@ jobs:
           fi
 
       - name: Install Wine Crossover
-        if: steps.check.outputs.skip == 'false'
+        if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip == 'false'
         run: brew install --cask --no-quarantine gcenx/wine/wine-crossover
 
       - name: Build .dmg
-        if: steps.check.outputs.skip == 'false'
+        if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip == 'false'
         run: ./build.sh "${{ steps.version.outputs.version }}"
 
       - name: Create release
-        if: steps.check.outputs.skip == 'false'
+        if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip == 'false'
         run: |
           VER="${{ steps.version.outputs.version }}"
           PRERELEASE_FLAG=""
