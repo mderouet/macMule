@@ -41,6 +41,14 @@ jobs:
               TAG=$(echo "$row" | jq -r '.tagName')
               VER=$(echo "$TAG" | sed 's/.*_v\(.*\)-community/\1/')
               PRE=$(echo "$row" | jq -r '.isPrerelease')
+
+              # Skip versions without x64 builds (pre-0.60a only had 32-bit)
+              HAS_X64=$(gh release view "$TAG" --repo irwir/eMule --json assets \
+                --jq '[.assets[].name | select(test("x64.*\\.zip$"))] | length')
+              if [ "$HAS_X64" = "0" ]; then
+                continue
+              fi
+
               if ! echo "$OURS" | grep -q "^v${VER}$"; then
                 MISSING_VER="$VER"
                 MISSING_PRERELEASE="$PRE"
