@@ -37,7 +37,7 @@ jobs:
             # Find oldest missing version (list is newest→oldest, last match = oldest)
             MISSING_VER=""
             MISSING_PRERELEASE=""
-            for row in $(echo "$UPSTREAM" | jq -c '.[]'); do
+            for row in $(echo "$UPSTREAM" | jq -c '.[] | select(.tagName | endswith("-community"))'); do
               TAG=$(echo "$row" | jq -r '.tagName')
               VER=$(echo "$TAG" | sed 's/.*_v\(.*\)-community/\1/')
               PRE=$(echo "$row" | jq -r '.isPrerelease')
@@ -93,6 +93,6 @@ jobs:
             PRERELEASE_FLAG="--prerelease"
           fi
           gh release create "v$VER" "build/macMule-v${VER}.dmg" \
-            --title "macMule v$VER" \
-            --notes "eMule v$VER for macOS. Download, drag to Applications, run." \
+            --title "macMule v$VER community" \
+            --notes "eMule v$VER community for macOS. Download, drag to Applications, run." \
             $PRERELEASE_FLAG
