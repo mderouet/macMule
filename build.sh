@@ -2,6 +2,12 @@
 # macMule build script
 # Creates a self-contained macMule.app inside a distributable .dmg
 #
+# Usage:
+#   ./build.sh              Build latest stable eMule release
+#   ./build.sh 0.70b        Build a specific version
+#   ./build.sh 0.72a        Also works for pre-releases
+#   ./build.sh --help       Show this help
+#
 # Prerequisites:
 #   - Wine Crossover installed at /Applications/Wine Crossover.app
 #     (brew install --cask gcenx/wine/wine-crossover)
@@ -13,13 +19,36 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
 APP_NAME="macMule"
-EMULE_VERSION="0.72a"
-EMULE_RELEASE_TAG="eMule_v0.72a-community"
-EMULE_ASSET="emule0.72a_x64_beta1.zip"
 WINE_APP="/Applications/Wine Crossover.app"
 WINE_DIR="$WINE_APP/Contents/Resources/wine"
+EMULE_REPO="irwir/eMule"
 
-echo "=== macMule Build Script ==="
+# --- Help ---
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    sed -n '2,/^$/s/^# \?//p' "$0"
+    exit 0
+fi
+
+# --- Resolve version ---
+if [ -n "${1:-}" ]; then
+    EMULE_VERSION="$1"
+    echo "=== macMule Build Script ==="
+    echo "Version: $EMULE_VERSION (user-specified)"
+else
+    echo "=== macMule Build Script ==="
+    echo "Detecting latest stable eMule release..."
+    LATEST_TAG=$(gh release list --repo "$EMULE_REPO" --json tagName,isPrerelease \
+        --jq '[.[] | select(.isPrerelease == false)][0].tagName')
+    if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+        echo "ERROR: Could not detect latest release. Specify a version: ./build.sh 0.70b"
+        exit 1
+    fi
+    # Extract version from tag like "eMule_v0.70b-community" -> "0.70b"
+    EMULE_VERSION=$(echo "$LATEST_TAG" | sed 's/.*_v\(.*\)-community/\1/')
+    echo "  Latest stable: v$EMULE_VERSION (tag: $LATEST_TAG)"
+fi
+
+EMULE_RELEASE_TAG="eMule_v${EMULE_VERSION}-community"
 echo "Building $APP_NAME v$EMULE_VERSION"
 echo ""
 
@@ -53,11 +82,20 @@ mkdir -p "$BUILD_DIR/tmp"
 # --- Download eMule release ---
 echo "[3/7] Downloading eMule v$EMULE_VERSION..."
 gh release download "$EMULE_RELEASE_TAG" \
-    --repo irwir/eMule \
-    --pattern "$EMULE_ASSET" \
+    --repo "$EMULE_REPO" \
+    --pattern "*x64*.zip" \
     --dir "$BUILD_DIR/tmp"
-unzip -q "$BUILD_DIR/tmp/$EMULE_ASSET" -d "$BUILD_DIR/tmp/emule"
-echo "  Downloaded and extracted"
+
+EMULE_ZIP=$(ls "$BUILD_DIR/tmp/"*x64*.zip 2>/dev/null | head -1)
+if [ -z "$EMULE_ZIP" ]; then
+    echo "ERROR: No x64 zip found in release $EMULE_RELEASE_TAG"
+    echo "Available assets:"
+    gh release view "$EMULE_RELEASE_TAG" --repo "$EMULE_REPO" --json assets --jq '.assets[].name'
+    exit 1
+fi
+
+unzip -q "$EMULE_ZIP" -d "$BUILD_DIR/tmp/emule"
+echo "  Downloaded: $(basename "$EMULE_ZIP")"
 
 # --- Create Wine prefix ---
 echo "[4/7] Initializing Wine prefix..."
@@ -99,9 +137,14 @@ cp -R "$WINE_DIR/share" "$APP_DIR/Resources/wine/"
 echo "  Copying Wine prefix..."
 cp -R "$BUILD_DIR/tmp/wine-prefix/"* "$APP_DIR/Resources/wine-prefix/"
 
-# eMule executable
-cp "$BUILD_DIR/tmp/emule/"*"/emule.exe" "$APP_DIR/Resources/emule/" 2>/dev/null \
-    || cp "$BUILD_DIR/tmp/emule/emule.exe" "$APP_DIR/Resources/emule/"
+# eMule executable — find it wherever it is in the extracted zip
+EMULE_EXE=$(find "$BUILD_DIR/tmp/emule" -iname "emule.exe" -type f | head -1)
+if [ -z "$EMULE_EXE" ]; then
+    echo "ERROR: emule.exe not found in the downloaded archive"
+    exit 1
+fi
+cp "$EMULE_EXE" "$APP_DIR/Resources/emule/"
+echo "  Found: $EMULE_EXE"
 
 # eMule config
 cp "$SCRIPT_DIR/config/"* "$APP_DIR/Resources/emule/config/"

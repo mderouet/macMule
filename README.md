@@ -18,7 +18,7 @@ Grab the latest `.dmg` from [**Releases**](../../releases), open it, drag **macM
 ## How It Works
 
 macMule bundles:
-- **eMule v0.72a** (community x64 build by [irwir](https://github.com/irwir/eMule))
+- **eMule** (community x64 build by [irwir](https://github.com/irwir/eMule))
 - **Wine Crossover** (x86_64 Windows compatibility layer by [Gcenx](https://github.com/Gcenx))
 
 On first launch, it copies a Wine prefix and eMule files to `~/Library/Application Support/macMule/`. Your downloads go to `~/Library/Application Support/macMule/drive_c/eMule/Incoming/`.
@@ -33,12 +33,14 @@ Prerequisites:
 Then:
 
 ```bash
-git clone https://github.com/<your-username>/macMule.git
+git clone https://github.com/mderouet/macMule.git
 cd macMule
-./build.sh
+./build.sh            # builds latest stable release
+./build.sh 0.70b      # builds a specific version
+./build.sh 0.72a      # also works for pre-releases
 ```
 
-This produces `build/macMule-v0.72a.dmg`.
+This produces `build/macMule-v<version>.dmg`.
 
 ## License
 
