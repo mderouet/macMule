@@ -1,6 +1,8 @@
 # macMule
 
-**eMule for macOS — download, drag to Applications, run.**
+<img width="1728" height="1117" alt="Screenshot 2026-02-14 at 21 16 58" src="https://github.com/user-attachments/assets/fecd35db-88db-461e-85eb-5e50ad17dc47" />
+
+**Original eMule for macOS — download, drag to Applications, run.**
 
 macMule packages [eMule](https://github.com/irwir/eMule) (the ed2k/Kad file-sharing client) as a self-contained macOS `.app` using Wine. No configuration needed — it auto-connects to the eMule Security server and the Kad network on first launch.
 
