@@ -23,9 +23,11 @@ jobs:
 
       - name: Resolve version
         id: version
+        env:
+          EMULE_VERSION_INPUT: ${{ inputs.emule_version }}
         run: |
-          if [ -n "${{ inputs.emule_version }}" ]; then
-            VER="${{ inputs.emule_version }}"
+          if [ -n "$EMULE_VERSION_INPUT" ]; then
+            VER="$EMULE_VERSION_INPUT"
             PRERELEASE=$(gh release view "eMule_v${VER}-community" --repo irwir/eMule \
               --json isPrerelease --jq '.isPrerelease')
           else
@@ -74,8 +76,9 @@ jobs:
       - name: Check if already released
         if: steps.version.outputs.skip != 'true'
         id: check
+        env:
+          VER: ${{ steps.version.outputs.version }}
         run: |
-          VER="${{ steps.version.outputs.version }}"
           if gh release view "v$VER" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Release v$VER already exists — skipping build."
@@ -90,14 +93,18 @@ jobs:
 
       - name: Build .dmg
         if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip == 'false'
-        run: ./build.sh "${{ steps.version.outputs.version }}"
+        env:
+          VER: ${{ steps.version.outputs.version }}
+        run: ./build.sh "$VER"
 
       - name: Create release
         if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip == 'false'
+        env:
+          VER: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
-          VER="${{ steps.version.outputs.version }}"
           PRERELEASE_FLAG=""
-          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+          if [ "$PRERELEASE" = "true" ]; then
             PRERELEASE_FLAG="--prerelease"
           fi
           gh release create "v$VER" "build/macMule-v${VER}.dmg" \
